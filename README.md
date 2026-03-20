@@ -8,6 +8,17 @@ This project completely automates your footprint in two major phases:
 1. **Infrastructure Provisioning (Terraform)**: Dynamically sets up an AWS VPC, Security Groups, and two EC2 instances. It uses user-data scripts to bootstrap the foundation for the Kubernetes cluster.
 2. **Application Deployment (Shell/Kubectl)**: Utilizes automated Bash scripts to securely copy Kubernetes manifest files to the newly provisioned EC2 instances, install the NGINX Ingress controller, and deploy the Database, Backend API, and Frontend web tier in a custom namespace.
 
+## 🚦 How the Network Traffic Works
+user requests -> ALB -> target group -> EC2 Host -> nodeport -> Ingress Controller -> Kube-proxy (iptables) -> CNI -> network namespace -> POD
+The application uses a precisely configured Kubernetes networking model to securely route traffic between its tiers:
+1. **External Access**: User traffic enters the AWS EC2 nodes via the public IP on NodePort `30080`.
+2. **Ingress Routing**: The **NGINX Ingress Controller** intercepts this traffic.
+   - User requests to the root path (`/`) are routed to the **Frontend** web service.
+   - API requests to the (`/api`) path are routed to the **Backend** API service.
+3. **Internal Architecture & Security**: The backend pods process requests and communicate with the isolated **Database** pod on port `6379`.
+4. **Network Policies**: A strict Kubernetes `NetworkPolicy` (`redis-network-policy`) drops all traffic attempting to reach the database tier *except* connections originating explicitly from the backend pods.
+
+
 ## 🛠️ Tech Stack
 * **Cloud Provider**: AWS (EC2, VPC)
 * **Infrastructure as Code**: HashiCorp Terraform
