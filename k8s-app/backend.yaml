@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: 3tier-app
+spec:
+  selector:
+    matchLabels:
+      app: backend
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+      - name: backend
+        image: python:3.9-alpine
+        command: ["sh", "-c"]
+        args:
+        - |
+          pip install redis
+          cat << 'EOF' > server.py
+          from http.server import BaseHTTPRequestHandler, HTTPServer
+          import json
+          import socket
+          import redis
+
+          cache = redis.Redis(host='redis', port=6379, decode_responses=True)
+
+          class RequestHandler(BaseHTTPRequestHandler):
+              def do_GET(self):
+                  self.send_response(200)
+                  self.send_header('Content-Type', 'application/json')
+                  self.send_header('Access-Control-Allow-Origin', '*')
+                  self.end_headers()
+                  
+                  try:
+                      visits = cache.incr('page_hits')
+                      db_status = 'Connected'
+                  except Exception as e:
+                      visits = 0
+                      db_status = f'Database Disconnected: {str(e)}'
+                      
+                  response = {
+                      "message": "Hello from the backend API!",
+                      "pod_internal_ip": socket.gethostbyname(socket.gethostname()),
+                      "pod_name": socket.gethostname(),
+                      "database_visits": visits,
+                      "database_status": db_status
+                  }
+                  self.wfile.write(json.dumps(response).encode('utf-8'))
+
+          server = HTTPServer(('0.0.0.0', 8080), RequestHandler)
+          print("Starting server on port 8080...")
+          server.serve_forever()
+          EOF
+          python3 server.py
+        ports:
+        - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: 3tier-app
+spec:
+  selector:
+    app: backend
+  ports:
+  - port: 8080
+    targetPort: 8080

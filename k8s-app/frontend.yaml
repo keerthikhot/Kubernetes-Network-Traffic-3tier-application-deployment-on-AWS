@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: 3tier-app
+spec:
+  selector:
+    matchLabels:
+      app: frontend
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+      - name: frontend
+        image: nginx:alpine
+        # Replace default index.html with a custom one that calls our backend API
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          cat << 'EOF' > /usr/share/nginx/html/index.html
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <title>Kubernetes Network Traffic Demo</title>
+              <style>
+                  body { font-family: sans-serif; padding: 2em; background-color: #f0f4f8; }
+                  .card { background: white; padding: 2em; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 1em; }
+                  h1 { color: #2c3e50; }
+                  pre { background: #eee; padding: 1em; border-radius: 4px; overflow-x: auto; }
+                  .network-flow { color: #34495e; font-family: monospace; }
+              </style>
+          </head>
+          <body>
+              <div class="card">
+                  <h1>K8s Network Traffic Flow Demo</h1>
+                  <p class="network-flow">User → ALB → EC2 NodePort (30080) → Ingress Nginx → Service → Pod</p>
+              </div>
+              <div class="card">
+                  <h2>Backend API Response:</h2>
+                  <pre id="api-response">Loading...</pre>
+              </div>
+              <script>
+                  fetch('/api/status')
+                      .then(response => response.json())
+                      .then(data => {
+                          document.getElementById('api-response').innerText = JSON.stringify(data, null, 2);
+                      })
+                      .catch(err => {
+                          document.getElementById('api-response').innerText = 'Error fetching backend API: ' + err;
+                      });
+              </script>
+          </body>
+          </html>
+          EOF
+          nginx -g 'daemon off;'
+        ports:
+        - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: 3tier-app
+spec:
+  selector:
+    app: frontend
+  ports:
+  - port: 80
+    targetPort: 80
