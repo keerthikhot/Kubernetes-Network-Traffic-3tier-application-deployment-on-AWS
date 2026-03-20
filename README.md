@@ -61,7 +61,33 @@ You can SSH into your designated node host and verify the network traffic polici
 kubectl get all -n 3tier-app
 kubectl get ingress -n 3tier-app
 ```
+## 📸 Evidence & Verification
 
+### 1. Cluster Workloads
+NAMESPACE            NAME                                         READY   STATUS    RESTARTS   AGE
+3tier-app            backend-6b7bfb4cd8-l28qw                     1/1     Running   0          17h
+3tier-app            backend-6b7bfb4cd8-p7j7f                     1/1     Running   0          17h
+3tier-app            frontend-64d74b78cc-6sr2d                    1/1     Running   0          17h
+3tier-app            frontend-64d74b78cc-cf4hb                    1/1     Running   0          17h
+3tier-app            redis-68bbc94689-wxs66                       1/1     Running   0          17h
+ingress-nginx        ingress-nginx-controller-7fbf5b4d96-7ktxl    1/1     Running   0          17h
+
+### 2. Traffic Flow / Ingress
+```text
+$ curl http://<EC2_PUBLIC_IP>:30080/
+# 🟢 Routes to the Frontend UI
+
+$ curl http://<EC2_PUBLIC_IP>:30080/api
+# 🟢 Routes to the Backend API
+```
+
+### 3. Application Screenshots
+1) Frontend 
+   <img width="1058" height="628" alt="Screenshot 2026-03-20 at 11 19 30 AM" src="https://github.com/user-attachments/assets/9541d898-9e17-4cf4-879b-e98a85a61c77" />
+
+2) Backend
+   <img width="1387" height="163" alt="Screenshot 2026-03-20 at 11 20 28 AM" src="https://github.com/user-attachments/assets/b8a92511-9ed8-4032-8a22-393eac6aa879" />
+ 
 ## 🧹 Cleanup
 To avoid incurring unnecessary AWS costs, tear down the infrastructure when finished:
 ```bash
